@@ -1,0 +1,23 @@
+[project]
+name = "civic-eval"
+version = "0.1.0"
+description = "Evaluation harness for government-services AI assistants: accuracy, safety, cost, latency."
+readme = "README.md"
+authors = [
+    { name = "Reeveson Masilamani", email = "182707807+reeve25@users.noreply.github.com" }
+]
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+civic-eval = "civic_eval.harness:main"
+
+[build-system]
+requires = ["uv_build>=0.12.13,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.16.9",
+]
