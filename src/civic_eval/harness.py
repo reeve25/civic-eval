@@ -190,9 +190,20 @@ def main() -> None:
     )
     # choices=PRICES: only priced models can run, so the cost column is never a guess.
     parser.add_argument("--model", default="mock", choices=sorted(PRICES))
+    parser.add_argument(
+        "--save", type=Path, help="write full answers as JSONL for review"
+    )
     args = parser.parse_args()
     client = mock_client if args.model == "mock" else openai_client(args.model)
-    print(report(run(load_scenarios(args.scenarios), client), model=args.model))
+    results = run(load_scenarios(args.scenarios), client)
+    if args.save:
+        args.save.parent.mkdir(parents=True, exist_ok=True)
+        with args.save.open("w", encoding="utf-8") as f:
+            for r in results:
+                f.write(
+                    json.dumps({"model": args.model, **r}, ensure_ascii=False) + "\n"
+                )
+    print(report(results, model=args.model))
 
 
 if __name__ == "__main__":
