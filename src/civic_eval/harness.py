@@ -179,7 +179,7 @@ def report(results: list[dict], model: str) -> str:
     fails = [r for r in results if not r["passed"]]
     if fails:
         lines.append("\nfailures:")
-        lines += [f"  {r['id']:<22}{r['answer'][:70]!r}" for r in fails]
+        lines += [f"  {r['id']:<27}{r['answer'][:70]!r}" for r in fails]
     return "\n".join(lines)
 
 

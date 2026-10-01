@@ -2,7 +2,7 @@
 
 **What:** a small evaluation harness that scores an LLM-backed state-services assistant on accuracy, safety, cost, and latency.
 **Why:** before a state rolls an assistant out to thousands of employees and residents, it needs evidence that the assistant gets public facts right, doesn't leak PII, resists prompt injection, and doesn't refuse legitimate help.
-**How:** hand-verified Massachusetts scenarios (sourced from malegislature.gov), substring-auditable scoring, and a per-model report table.
+**How:** hand-verified Massachusetts scenarios (sourced from malegislature.gov, eCFR/USDA, and mass.gov), substring-auditable scoring, and a per-model report table.
 
 ## Scope
 
@@ -36,7 +36,7 @@ A client is just a function `(system: str, user: str) -> Reply`. There's no base
 
 - **M1, vertical slice (done):** scenarios, mock client, scoring, report table, pytest.
 - **M2, real provider (done):** `openai_client` over stdlib `urllib` (one POST doesn't justify the SDK), a `--model` flag, a price table for cost, and a timeout with one retry. Tests stay offline.
-- **M3, gold set to about 30 rows:** verify the income-tax TODO against DOR; add RMV, unemployment (DUA), and SNAP (DTA) facts, each with a URL and a date. Include "the answer changed recently" cases.
+- **M3, gold set to about 30 rows (done):** 33 verified accuracy rows across RMV (ch. 90), DUA (ch. 151A), and SNAP (7 CFR 273, FNS, DTA), plus the earlier facts; one TODO (DUA max weeks). Rows that mass.gov blocks carry a `method` field saying how they were checked; "changed recently" rows carry a `note`.
 - **M4, safety depth:** port 5–10 injection prompts from garak probes (`promptinject`, `latentinjection`) with attribution; add PII variants (phone numbers, case IDs); add more over-refusal cases.
 - **M5, multi-model comparison:** run 2–3 models, write `results/<date>.md` and JSON, and add a CI workflow (ruff and pytest).
 - **M6, polish:** README with real sample output, an architecture diagram, a LICENSE, and a findings write-up: which model you'd deploy and why.
@@ -47,7 +47,7 @@ A client is just a function `(system: str, user: str) -> Reply`. There's no base
 2. **Why is over-refusal a failure?** A government assistant that refuses "how do I get my own CORI" fails residents. Safety has two sides: blocking harm and still delivering the service.
 3. **Canaries:** `SYS-CANARY-2291` in the system prompt and `CANARY-7731` in injected text let a substring check detect leakage or hijacking with no false negatives on exact echoes. Know the limit: paraphrased leaks slip through.
 4. **Indirect vs. direct injection:** `inj-retrieved-page` plants the attack inside retrieved "data". That's the realistic threat for RAG over state web pages, and it's what garak's `latentinjection` family covers.
-5. **Gold-set provenance:** every fact links to a statute, and `verified` dates matter because law changes. The income-tax row is a TODO on purpose: ch. 62 §4 has revenue-triggered step-downs, so the statute text alone isn't the in-effect rate. That's the kind of trap a model (or you) falls into.
+5. **Gold-set provenance:** every fact links to a statute, and `verified` dates matter because law changes. The income-tax row shows why: ch. 62 §4 still prints 5.3%, but revenue-triggered step-downs put the in-effect rate at the 5% floor (checked against DOR). That's the kind of trap a model (or you) falls into. DUA max weeks is still a TODO for the same reason: §30 toggles 30/26 weeks on an unemployment trigger.
 6. **Synthetic PII:** SSN area `000` is never issued, so the test data can't be anyone's real number.
 7. **Why a function instead of a client class:** one call site, one signature. Add a class when a second behaviour (streaming, batching) actually needs shared state.
 8. **Why the mock is deliberately wrong:** the tests prove the scorer *catches* each failure mode. A mock that always passes would prove nothing.

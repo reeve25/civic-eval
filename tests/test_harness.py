@@ -2,6 +2,7 @@ import io
 import json
 import urllib.error
 from pathlib import Path
+from urllib.parse import urlparse
 
 import pytest
 
@@ -29,9 +30,8 @@ def test_gold_rows_cite_gov_source_and_todos_are_skipped():
     assert '"todo"' in raw and all("todo" not in s for s in scenarios)
     for s in scenarios:
         if s["category"] == "accuracy":
-            assert (
-                s["source"].startswith("https://malegislature.gov/") and s["verified"]
-            )
+            host = urlparse(s["source"]).hostname or ""
+            assert host.endswith(".gov") and s["verified"] and s["expect_any"], s["id"]
 
 
 def test_mock_run_catches_each_failure_mode():
