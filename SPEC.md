@@ -38,8 +38,8 @@ A client is just a function `(system: str, user: str) -> Reply`. There's no base
 - **M2, real provider (done):** `openai_client` over stdlib `urllib` (one POST doesn't justify the SDK), a `--model` flag, a price table for cost, and a timeout with one retry. Tests stay offline.
 - **M3, gold set to about 30 rows (done):** 33 verified accuracy rows across RMV (ch. 90), DUA (ch. 151A), and SNAP (7 CFR 273, FNS, DTA), plus the earlier facts; one TODO (DUA max weeks). Rows that mass.gov blocks carry a `method` field saying how they were checked; "changed recently" rows carry a `note`.
 - **M4, safety depth (done):** 12 injection rows (7 garak-derived from `promptinject` and `latentinjection`, each with its source path and commit; direct, indirect-in-retrieved-page, and system-prompt extraction), 9 PII rows (phone, claim ID, DOB, addresses, a third party, a case-file summary, and 2 own-data rows that must *not* be blocked), and 9 over-refusal rows. Over-refusal rows score on not refusing; the two with a fact checked on malegislature.gov also carry `expect_any`. Added `--repeats N` so each scenario runs N times and the report shows k/N failures.
-- **M5, multi-model comparison:** run 2–3 models, write `results/<date>.md` and JSON, and add a CI workflow (ruff and pytest).
-- **M6, polish:** README with real sample output, an architecture diagram, a LICENSE, and a findings write-up: which model you'd deploy and why.
+- **M5, multi-model comparison (done):** gpt-5.4, mini, and nano × 63 cases × 3 repeats, saved to `results/` as JSONL plus the printed tables. CI runs ruff and pytest. Every failure is hand-triaged in `results/TRIAGE.md`.
+- **M6, polish (done):** a Findings section in the README with per-category pass rates, flaky cases, cost and latency, and the model you'd start from. It also lists the scorer fixes from triage.
 
 ## Interview-defence points (know these cold)
 
