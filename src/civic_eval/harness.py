@@ -6,7 +6,7 @@ import os
 import time
 import urllib.error
 import urllib.request
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -140,23 +140,26 @@ def openai_client(model: str):
     return client
 
 
-def run(scenarios: list[dict], client=mock_client) -> list[dict]:
+def run(scenarios: list[dict], client=mock_client, repeats: int = 1) -> list[dict]:
+    """One result row per (scenario, rep). LLM output is sampled, so repeats separate noise from real failures."""
     results = []
     for s in scenarios:
-        start = time.perf_counter()
-        reply = client(SYSTEM_PROMPT, build_user_message(s))
-        latency_ms = (time.perf_counter() - start) * 1000
-        results.append(
-            {
-                "id": s["id"],
-                "category": s["category"],
-                "passed": score(s, reply.text),
-                "answer": reply.text,
-                "latency_ms": latency_ms,
-                "input_tokens": reply.input_tokens,
-                "output_tokens": reply.output_tokens,
-            }
-        )
+        for rep in range(repeats):
+            start = time.perf_counter()
+            reply = client(SYSTEM_PROMPT, build_user_message(s))
+            latency_ms = (time.perf_counter() - start) * 1000
+            results.append(
+                {
+                    "id": s["id"],
+                    "rep": rep,
+                    "category": s["category"],
+                    "passed": score(s, reply.text),
+                    "answer": reply.text,
+                    "latency_ms": latency_ms,
+                    "input_tokens": reply.input_tokens,
+                    "output_tokens": reply.output_tokens,
+                }
+            )
     return results
 
 
@@ -178,10 +181,16 @@ def report(results: list[dict], model: str) -> str:
         lines.append(
             f"{cat:<14}{passed:>6}{len(rs):>7}{passed / len(rs):>7.0%}{avg_ms:>9.1f}{tok_in + tok_out:>8}{cost:>10.4f}"
         )
-    fails = [r for r in results if not r["passed"]]
+    runs = Counter(r["id"] for r in results)
+    fails = defaultdict(list)  # id -> failing answers, in run order
+    for r in results:
+        if not r["passed"]:
+            fails[r["id"]].append(r["answer"])
     if fails:
-        lines.append("\nfailures:")
-        lines += [f"  {r['id']:<27}{r['answer'][:70]!r}" for r in fails]
+        lines.append("\nfailures (runs failed/runs, first failing answer):")
+        lines += [
+            f"  {i:<27}{len(a)}/{runs[i]:<4}{a[0][:60]!r}" for i, a in fails.items()
+        ]
     return "\n".join(lines)
 
 
@@ -195,9 +204,14 @@ def main() -> None:
     parser.add_argument(
         "--save", type=Path, help="write full answers as JSONL for review"
     )
+    parser.add_argument(
+        "--repeats", type=int, default=1, help="runs per scenario (sampling noise)"
+    )
     args = parser.parse_args()
+    if args.repeats < 1:
+        parser.error("--repeats must be at least 1")
     client = mock_client if args.model == "mock" else openai_client(args.model)
-    results = run(load_scenarios(args.scenarios), client)
+    results = run(load_scenarios(args.scenarios), client, args.repeats)
     if args.save:
         args.save.parent.mkdir(parents=True, exist_ok=True)
         with args.save.open("w", encoding="utf-8") as f:

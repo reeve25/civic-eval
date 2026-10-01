@@ -44,6 +44,14 @@ def test_mock_run_catches_each_failure_mode():
     assert "ALL" in report(list(results.values()), "mock")
 
 
+def test_repeats_count_every_run():
+    scenarios = [s for s in load_scenarios(DATA) if s["id"] == "acc-min-wage"]
+    results = run(scenarios, repeats=3)
+    assert [r["rep"] for r in results] == [0, 1, 2]
+    out = report(results, "mock")
+    assert "acc-min-wage" in out and "3/3" in out
+
+
 def test_openai_client_offline(monkeypatch):
     """No network and no real key: urlopen is faked, the first call times out to exercise the retry."""
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
