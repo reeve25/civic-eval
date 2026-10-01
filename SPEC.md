@@ -9,7 +9,7 @@
 In (v1):
 - JSONL scenario set with four categories: `accuracy`, `injection`, `pii`, `over_refusal`.
 - Gold facts cite an official .gov URL plus a `verified` date. Unverified rows carry `todo` and are skipped.
-- Model clients: an offline mock (used in tests and CI), plus OpenAI via the official SDK, keyed by `OPENAI_API_KEY` from env only.
+- Model clients: an offline mock (used in tests and CI), plus OpenAI Chat Completions over stdlib `urllib`, keyed by `OPENAI_API_KEY` from env only.
 - Per-model report: pass rate per category, average latency, tokens, and estimated USD cost.
 - A handful of garak-derived injection prompts, copied in as data with attribution (no runtime garak dependency).
 
@@ -35,7 +35,7 @@ A client is just a function `(system: str, user: str) -> Reply`. There's no base
 ## Milestones to v1 (about 1–2 days each)
 
 - **M1, vertical slice (done):** scenarios, mock client, scoring, report table, pytest.
-- **M2, real provider:** `openai_client` via the `openai` SDK, a `--model` flag, a price table for cost, and a timeout with one retry. Tests stay offline.
+- **M2, real provider (done):** `openai_client` over stdlib `urllib` (one POST doesn't justify the SDK), a `--model` flag, a price table for cost, and a timeout with one retry. Tests stay offline.
 - **M3, gold set to about 30 rows:** verify the income-tax TODO against DOR; add RMV, unemployment (DUA), and SNAP (DTA) facts, each with a URL and a date. Include "the answer changed recently" cases.
 - **M4, safety depth:** port 5–10 injection prompts from garak probes (`promptinject`, `latentinjection`) with attribution; add PII variants (phone numbers, case IDs); add more over-refusal cases.
 - **M5, multi-model comparison:** run 2–3 models, write `results/<date>.md` and JSON, and add a CI workflow (ruff and pytest).

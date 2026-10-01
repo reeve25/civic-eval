@@ -2,7 +2,10 @@
 
 import argparse
 import json
+import os
 import time
+import urllib.error
+import urllib.request
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
@@ -23,6 +26,16 @@ REFUSAL_MARKERS = (
     "i won't",
     "not able to help",
 )
+
+OPENAI_URL = "https://api.openai.com/v1/chat/completions"
+
+# USD per 1M tokens (input, output), standard tier, no cached-input discount.
+# Source: https://developers.openai.com/api/docs/models/<model>, checked 2026-09-30.
+PRICES = {
+    "mock": (0.0, 0.0),
+    "gpt-5.4": (2.50, 15.00),
+    "gpt-5.4-mini": (0.75, 4.50),
+}
 
 
 @dataclass
@@ -87,6 +100,44 @@ def mock_client(system: str, user: str) -> Reply:
     return Reply(text, len((system + user).split()), len(text.split()))
 
 
+def openai_client(model: str):
+    """Return a client for OpenAI Chat Completions. The key comes only from the OPENAI_API_KEY env var."""
+    key = os.environ.get("OPENAI_API_KEY")
+    if not key:
+        raise SystemExit("OPENAI_API_KEY is not set; use --model mock to run offline.")
+
+    def client(system: str, user: str) -> Reply:
+        body = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+        }
+        req = urllib.request.Request(
+            OPENAI_URL,
+            data=json.dumps(body).encode(),
+            headers={
+                "Authorization": f"Bearer {key}",
+                "Content-Type": "application/json",
+            },
+        )
+        # ponytail: one blind retry (also retries 4xx); add backoff and status checks if rate limits bite.
+        for attempt in range(2):
+            try:
+                with urllib.request.urlopen(req, timeout=60) as resp:
+                    data = json.load(resp)
+                break
+            except (urllib.error.URLError, TimeoutError):
+                if attempt:
+                    raise
+        usage = data["usage"]
+        text = data["choices"][0]["message"]["content"] or ""
+        return Reply(text, usage["prompt_tokens"], usage["completion_tokens"])
+
+    return client
+
+
 def run(scenarios: list[dict], client=mock_client) -> list[dict]:
     results = []
     for s in scenarios:
@@ -100,25 +151,30 @@ def run(scenarios: list[dict], client=mock_client) -> list[dict]:
                 "passed": score(s, reply.text),
                 "answer": reply.text,
                 "latency_ms": latency_ms,
-                "tokens": reply.input_tokens + reply.output_tokens,
+                "input_tokens": reply.input_tokens,
+                "output_tokens": reply.output_tokens,
             }
         )
     return results
 
 
 def report(results: list[dict], model: str) -> str:
+    in_price, out_price = PRICES[model]
     by_cat = defaultdict(list)
     for r in results:
         by_cat[r["category"]].append(r)
     lines = [
         f"model: {model}",
-        f"{'category':<14}{'pass':>6}{'total':>7}{'rate':>7}{'avg ms':>9}{'tokens':>8}",
+        f"{'category':<14}{'pass':>6}{'total':>7}{'rate':>7}{'avg ms':>9}{'tokens':>8}{'cost $':>10}",
     ]
     for cat, rs in sorted(by_cat.items()) + [("ALL", results)]:
         passed = sum(r["passed"] for r in rs)
         avg_ms = sum(r["latency_ms"] for r in rs) / len(rs)
+        tok_in = sum(r["input_tokens"] for r in rs)
+        tok_out = sum(r["output_tokens"] for r in rs)
+        cost = (tok_in * in_price + tok_out * out_price) / 1_000_000
         lines.append(
-            f"{cat:<14}{passed:>6}{len(rs):>7}{passed / len(rs):>7.0%}{avg_ms:>9.1f}{sum(r['tokens'] for r in rs):>8}"
+            f"{cat:<14}{passed:>6}{len(rs):>7}{passed / len(rs):>7.0%}{avg_ms:>9.1f}{tok_in + tok_out:>8}{cost:>10.4f}"
         )
     fails = [r for r in results if not r["passed"]]
     if fails:
@@ -132,8 +188,11 @@ def main() -> None:
     parser.add_argument(
         "scenarios", nargs="?", default="data/scenarios.jsonl", type=Path
     )
+    # choices=PRICES: only priced models can run, so the cost column is never a guess.
+    parser.add_argument("--model", default="mock", choices=sorted(PRICES))
     args = parser.parse_args()
-    print(report(run(load_scenarios(args.scenarios)), model="mock"))
+    client = mock_client if args.model == "mock" else openai_client(args.model)
+    print(report(run(load_scenarios(args.scenarios), client), model=args.model))
 
 
 if __name__ == "__main__":
