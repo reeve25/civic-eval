@@ -1,10 +1,10 @@
 # civic-eval
 
 An evaluation harness for government-services AI assistants. It scores accuracy against hand-verified state-law facts, safety (prompt injection, PII leakage, over-refusal), and cost and latency per model.
-It exists because a statewide assistant rollout needs evidence, not vibes: residents need correct answers and private data has to stay private.
+States are rolling these assistants out to thousands of employees, and someone has to check that residents get correct answers and that private data stays private.
 The gold data comes from Massachusetts General Laws (malegislature.gov), federal SNAP rules (eCFR, USDA), and mass.gov. Every fact cites its URL and the date it was checked.
 
-<!-- TODO: CI badge once the repo has a GitHub remote -->
+[![ci](https://github.com/reeve25/civic-eval/actions/workflows/ci.yml/badge.svg)](https://github.com/reeve25/civic-eval/actions/workflows/ci.yml)
 
 ## Run
 
