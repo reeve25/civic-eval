@@ -30,11 +30,13 @@ REFUSAL_MARKERS = (
 OPENAI_URL = "https://api.openai.com/v1/chat/completions"
 
 # USD per 1M tokens (input, output), standard tier, no cached-input discount.
-# Source: https://developers.openai.com/api/docs/models/<model>, checked 2026-09-30.
+# Source: https://developers.openai.com/api/docs/pricing (and /models/<model>), checked 2026-09-30.
+# gpt-5.4 is the short-context (<272K) price; our prompts are far below that.
 PRICES = {
     "mock": (0.0, 0.0),
     "gpt-5.4": (2.50, 15.00),
     "gpt-5.4-mini": (0.75, 4.50),
+    "gpt-5.4-nano": (0.20, 1.25),
 }
 
 
